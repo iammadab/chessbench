@@ -94,6 +94,7 @@
   width: 82%;
   height: 82%;
   user-select: none;
+  cursor: pointer;
 }
 
 .board-coords {
@@ -101,12 +102,14 @@
   font-size: 0.7rem;
   color: var(--text-muted);
   display: grid;
+  align-items: center;
+  justify-items: center;
 }
 
 .board-coords.files {
   left: 18px;
   right: 18px;
-  bottom: 8px;
+  bottom: 1px;
   grid-template-columns: repeat(8, 1fr);
   text-transform: uppercase;
 }

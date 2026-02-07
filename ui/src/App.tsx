@@ -156,8 +156,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Chessbench UI</p>
-          <h1>Engine match monitor</h1>
+          <p className="eyebrow">Chessbench</p>
         </div>
         <div className="status-pill">
           <span className="status-dot" />
