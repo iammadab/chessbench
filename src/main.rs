@@ -6,6 +6,7 @@ mod api;
 mod config;
 mod domain;
 mod match_runner;
+mod server;
 mod uci;
 
 #[derive(Debug, Parser)]
@@ -17,7 +18,8 @@ struct Cli {
     config: PathBuf,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     let config_text = match fs::read_to_string(&cli.config) {
@@ -38,6 +40,21 @@ fn main() {
 
     if let Err(err) = config.validate() {
         eprintln!("invalid config contents: {err:?}");
+        process::exit(1);
+    }
+
+    let app = server::build_router(config);
+
+    let listener = match tokio::net::TcpListener::bind(&cli.bind).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            eprintln!("failed to bind {}: {err}", cli.bind);
+            process::exit(1);
+        }
+    };
+
+    if let Err(err) = axum::serve(listener, app).await {
+        eprintln!("server error: {err}");
         process::exit(1);
     }
 }
