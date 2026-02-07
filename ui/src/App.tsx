@@ -56,35 +56,31 @@ function parsePgnMoves(pgn: string) {
   return rows
 }
 
+const pieceSrc: Record<string, string> = {
+  p: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+  r: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+  n: 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+  b: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+  q: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+  k: 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg',
+  P: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+  R: 'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+  N: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+  B: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+  Q: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+  K: 'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg',
+}
+
 function Piece({ code }: { code: string }) {
-  const isWhite = code === code.toUpperCase()
   const label = code.toUpperCase()
   return (
-    <svg
+    <img
       className="piece"
-      viewBox="0 0 64 64"
-      role="img"
-      aria-label={isWhite ? `White ${label}` : `Black ${label}`}
-    >
-      <circle
-        cx="32"
-        cy="32"
-        r="22"
-        fill={isWhite ? '#f8f3e6' : '#2a2a2a'}
-        stroke={isWhite ? '#c7b89b' : '#111111'}
-        strokeWidth="2"
-      />
-      <text
-        x="32"
-        y="38"
-        textAnchor="middle"
-        fontSize="22"
-        fontFamily="'Merriweather', serif"
-        fill={isWhite ? '#2a2a2a' : '#f8f3e6'}
-      >
-        {label}
-      </text>
-    </svg>
+      src={pieceSrc[code]}
+      alt={label}
+      loading="lazy"
+      draggable={false}
+    />
   )
 }
 

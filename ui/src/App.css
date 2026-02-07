@@ -1,6 +1,6 @@
 .app {
   min-height: 100vh;
-  padding: 48px clamp(20px, 5vw, 64px);
+  padding: 40px clamp(20px, 5vw, 56px);
   color: var(--text-primary);
 }
 
@@ -9,20 +9,20 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.28em;
-  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
 }
 
 .app-header h1 {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 3vw, 3rem);
+  font-family: var(--font-primary);
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
   margin: 0;
 }
 
@@ -30,11 +30,11 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 0.9rem;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
 }
 
 .status-dot {
@@ -42,29 +42,29 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 12px rgba(239, 195, 114, 0.9);
 }
 
 .app-main {
   display: grid;
-  grid-template-columns: minmax(280px, 520px) minmax(240px, 1fr);
-  gap: clamp(20px, 4vw, 48px);
+  grid-template-columns: minmax(560px, 1fr) minmax(200px, 280px);
+  gap: clamp(16px, 3vw, 32px);
   align-items: start;
 }
 
 .board-panel {
   display: grid;
   gap: 16px;
+  justify-items: start;
 }
 
 .board {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 18px;
-  padding: 28px;
-  background: rgba(15, 14, 12, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 60px rgba(7, 6, 5, 0.45);
+  border-radius: 10px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  width: min(84vw, 820px);
 }
 
 .board-inner {
@@ -72,7 +72,7 @@
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
   gap: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -83,36 +83,37 @@
 }
 
 .square.light {
-  background: #f1e6d1;
+  background: var(--board-light);
 }
 
 .square.dark {
-  background: #9b7f5b;
+  background: var(--board-dark);
 }
 
 .piece {
-  width: 70%;
-  height: 70%;
+  width: 82%;
+  height: 82%;
+  user-select: none;
 }
 
 .board-coords {
   position: absolute;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
+  color: var(--text-muted);
   display: grid;
 }
 
 .board-coords.files {
-  left: 28px;
-  right: 28px;
+  left: 18px;
+  right: 18px;
   bottom: 8px;
   grid-template-columns: repeat(8, 1fr);
   text-transform: uppercase;
 }
 
 .board-coords.ranks {
-  top: 28px;
-  bottom: 28px;
+  top: 18px;
+  bottom: 18px;
   left: 8px;
   grid-template-rows: repeat(8, 1fr);
 }
@@ -121,10 +122,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border);
 }
 
 .caption-title {
@@ -142,10 +143,10 @@
 }
 
 .moves {
-  background: rgba(18, 17, 15, 0.7);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
   min-height: 320px;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -159,9 +160,9 @@
 }
 
 .moves-header h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-primary);
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
 .moves-header span {
@@ -180,9 +181,9 @@
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f6f6f6;
 }
 
 .move-number {
@@ -194,7 +195,7 @@
 }
 
 .move-san.black {
-  color: #e5cda2;
+  color: #2a2a2a;
 }
 
 @media (max-width: 900px) {
@@ -207,16 +208,17 @@
   }
 
   .board {
-    padding: 20px;
+    padding: 16px;
+    width: 100%;
   }
 
   .board-coords.files {
-    left: 20px;
-    right: 20px;
+    left: 16px;
+    right: 16px;
   }
 
   .board-coords.ranks {
-    top: 20px;
-    bottom: 20px;
+    top: 16px;
+    bottom: 16px;
   }
 }
