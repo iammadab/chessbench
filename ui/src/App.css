@@ -214,6 +214,22 @@
   background: var(--board-dark);
 }
 
+.square.highlight-from.light {
+  background: #f2e8b8;
+}
+
+.square.highlight-from.dark {
+  background: #a3b66d;
+}
+
+.square.highlight-to.light {
+  background: #e0efbf;
+}
+
+.square.highlight-to.dark {
+  background: #8fb570;
+}
+
 .piece {
   width: 82%;
   height: 82%;

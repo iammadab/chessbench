@@ -137,6 +137,64 @@ function Chessboard({ fen }: { fen: string }) {
   )
 }
 
+function uciToSquares(uci: string | null) {
+  if (!uci || uci.length < 4) return null
+  return {
+    from: uci.slice(0, 2),
+    to: uci.slice(2, 4),
+  }
+}
+
+function coordsToSquare(fileIndex: number, rankIndex: number) {
+  const file = files[fileIndex]
+  const rank = 8 - rankIndex
+  return `${file}${rank}`
+}
+
+function ChessboardWithHighlight({
+  fen,
+  lastMoveUci,
+}: {
+  fen: string
+  lastMoveUci: string | null
+}) {
+  const grid = parseFen(fen)
+  const lastMove = uciToSquares(lastMoveUci)
+  return (
+    <div className="board">
+      <div className="board-inner">
+        {grid.map((rank, rankIndex) =>
+          rank.map((square, fileIndex) => {
+            const isDark = (rankIndex + fileIndex) % 2 === 1
+            const key = `${rankIndex}-${fileIndex}`
+            const squareId = coordsToSquare(fileIndex, rankIndex)
+            const isFrom = lastMove?.from === squareId
+            const isTo = lastMove?.to === squareId
+            return (
+              <div
+                key={key}
+                className={`square ${isDark ? 'dark' : 'light'}${isFrom ? ' highlight-from' : ''}${isTo ? ' highlight-to' : ''}`}
+              >
+                {square ? <Piece code={square} /> : null}
+              </div>
+            )
+          }),
+        )}
+      </div>
+      <div className="board-coords files">
+        {files.map((file) => (
+          <span key={file}>{file}</span>
+        ))}
+      </div>
+      <div className="board-coords ranks">
+        {[8, 7, 6, 5, 4, 3, 2, 1].map((rank) => (
+          <span key={rank}>{rank}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function MoveList({ pgn }: { pgn: string }) {
   const rows = parsePgnMoves(pgn)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -187,6 +245,7 @@ function App() {
   const [result, setResult] = useState<MatchResult | null>(null)
   const [status, setStatus] = useState<MatchStatus>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [lastMoveUci, setLastMoveUci] = useState<string | null>(null)
   const [useMocks, setUseMocks] = useState(true)
   const [whiteEngineId, setWhiteEngineId] = useState('')
   const [blackEngineId, setBlackEngineId] = useState('')
@@ -236,6 +295,7 @@ function App() {
         onMove: (data: MoveEvent) => {
           setFen(data.fen)
           setPgn(data.pgn)
+          setLastMoveUci(data.uci)
         },
         onResult: (data: ResultEvent) => {
           setResult(data)
@@ -259,6 +319,7 @@ function App() {
     setPgn('')
     setClocks(null)
     setResult(null)
+    setLastMoveUci(null)
     setStatus('idle')
     setError(null)
   }, [closeStream])
@@ -337,6 +398,7 @@ function App() {
             onMove: (data: MoveEvent) => {
               setFen(data.fen)
               setPgn(data.pgn)
+              setLastMoveUci(data.uci)
             },
             onResult: (data: ResultEvent) => {
               setResult(data)
@@ -393,7 +455,7 @@ function App() {
             <span className="side-name">{formatEngineLabel(blackEngine)}</span>
             <span className="side-clock">{formatClock(clocks?.black_ms ?? initialMs)}</span>
           </div>
-          <Chessboard fen={fen || startFen} />
+          <ChessboardWithHighlight fen={fen || startFen} lastMoveUci={lastMoveUci} />
           <div className="side-label bottom">
             <span className="side-tag">White</span>
             <span className="side-name">{formatEngineLabel(whiteEngine)}</span>
