@@ -1,0 +1,9 @@
+[[engine]]
+id = "stockfish-16"
+path = "/path/to/stockfish"
+args = ["-threads", "4"]
+
+[[engine]]
+id = "lc0-0.30"
+path = "/path/to/lc0"
+args = ["--weights", "/path/to/weights"]
