@@ -1,14 +1,18 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
+    response::sse::{Event, Sse},
     routing::{get, post},
     Json, Router,
 };
+use futures::Stream;
 use tokio::sync::RwLock;
+use tokio::time::{self, Duration};
 use uuid::Uuid;
 
 use crate::api::{
@@ -54,6 +58,7 @@ pub fn build_router(config: EngineConfigFile) -> Router {
         .route("/api/engines", get(get_engines))
         .route("/api/match", post(create_match))
         .route("/api/match/:id", get(get_match))
+        .route("/api/match/:id/stream", get(stream_match))
         .with_state(state)
 }
 
@@ -135,4 +140,64 @@ async fn get_match(
     };
 
     Ok(Json(response))
+}
+
+async fn stream_match(
+    State(state): State<AppState>,
+    Path(match_id): Path<String>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, (StatusCode, Json<ErrorResponse>)> {
+    {
+        let matches = state.matches.read().await;
+        if !matches.contains_key(&match_id) {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "match not found".to_string(),
+                }),
+            ));
+        }
+    }
+
+    let match_id_clone = match_id.clone();
+    let state_clone = state.clone();
+
+    let stream = async_stream::stream! {
+        let started_payload = serde_json::json!({
+            "match_id": match_id_clone,
+            "start_fen": START_FEN,
+        });
+        let started_json = serde_json::to_string(&started_payload).unwrap_or_default();
+        yield Ok(Event::default().event("match_started").data(started_json));
+
+        let mut ticker = time::interval(Duration::from_millis(200));
+        loop {
+            ticker.tick().await;
+
+            let snapshot = {
+                let matches = state_clone.matches.read().await;
+                matches.get(&match_id).cloned()
+            };
+
+            let Some(snapshot) = snapshot else {
+                break;
+            };
+
+            let clock_payload = serde_json::json!({
+                "white_ms": snapshot.clocks.white_ms,
+                "black_ms": snapshot.clocks.black_ms,
+            });
+            let clock_json = serde_json::to_string(&clock_payload).unwrap_or_default();
+            yield Ok(Event::default().event("clock").data(clock_json));
+
+            if snapshot.status != MatchStatus::Running {
+                if let Some(result) = snapshot.result {
+                    let result_json = serde_json::to_string(&result).unwrap_or_default();
+                    yield Ok(Event::default().event("result").data(result_json));
+                }
+                break;
+            }
+        }
+    };
+
+    Ok(Sse::new(stream))
 }
