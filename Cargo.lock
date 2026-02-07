@@ -204,6 +204,7 @@ dependencies = [
  "shakmaty",
  "tokio",
  "toml",
+ "tower",
  "uuid",
 ]
 

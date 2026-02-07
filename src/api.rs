@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::{Clock, MatchResult, MatchStatus, ResultReason};
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EnginesResponse {
     pub engines: Vec<EngineInfo>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EngineInfo {
     pub id: String,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct TimeControlRequest {
     pub initial_ms: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MatchCreateResponse {
     pub match_id: String,
 }

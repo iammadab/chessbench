@@ -201,3 +201,105 @@ async fn stream_match(
 
     Ok(Sse::new(stream))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{EngineConfig, EngineConfigFile};
+    use axum::body::{to_bytes, Body};
+    use axum::http::{Request, StatusCode as HttpStatus};
+    use tower::ServiceExt;
+
+    fn sample_config() -> EngineConfigFile {
+        EngineConfigFile {
+            engine: vec![
+                EngineConfig {
+                    id: "stockfish-16".to_string(),
+                    path: "/opt/stockfish".into(),
+                    args: vec!["-threads".to_string(), "4".to_string()],
+                    working_dir: None,
+                },
+                EngineConfig {
+                    id: "lc0-0.30".to_string(),
+                    path: "/opt/lc0".into(),
+                    args: Vec::new(),
+                    working_dir: None,
+                },
+            ],
+        }
+    }
+
+    #[tokio::test]
+    async fn get_engines_returns_configured_engines() {
+        let app = build_router(sample_config());
+
+        let response = app
+            .oneshot(Request::builder().uri("/api/engines").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::OK);
+
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: EnginesResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(payload.engines.len(), 2);
+        assert_eq!(payload.engines[0].id, "stockfish-16");
+        assert_eq!(payload.engines[1].id, "lc0-0.30");
+    }
+
+    #[tokio::test]
+    async fn post_match_creates_match() {
+        let app = build_router(sample_config());
+
+        let request_body = serde_json::json!({
+            "white_engine_id": "stockfish-16",
+            "black_engine_id": "lc0-0.30",
+            "time_control": { "initial_ms": 300000 }
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/match")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::OK);
+
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: MatchCreateResponse = serde_json::from_slice(&body).unwrap();
+
+        assert!(!payload.match_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn post_match_rejects_unknown_engine() {
+        let app = build_router(sample_config());
+
+        let request_body = serde_json::json!({
+            "white_engine_id": "unknown",
+            "black_engine_id": "lc0-0.30",
+            "time_control": { "initial_ms": 300000 }
+        });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/match")
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::BAD_REQUEST);
+    }
+}
