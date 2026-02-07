@@ -3,12 +3,12 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     response::sse::{Event, Sse},
     routing::{get, post},
-    Json, Router,
 };
 use futures::Stream;
 use tokio::sync::RwLock;
@@ -18,15 +18,16 @@ use uuid::Uuid;
 use crate::api::{
     EngineInfo, EnginesResponse, MatchCreateRequest, MatchCreateResponse, MatchStatusResponse,
 };
-use crate::config::EngineConfigFile;
 use crate::domain::{Clock, MatchState, MatchStatus, Side};
+use crate::engine::EngineSpec;
+use crate::match_runner::run_match;
 
 const START_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Clone)]
 pub struct AppState {
     engines: Arc<Vec<EngineInfo>>,
-    engine_ids: Arc<Vec<String>>,
+    engine_specs: Arc<HashMap<String, EngineSpec>>,
     matches: Arc<RwLock<HashMap<String, MatchState>>>,
 }
 
@@ -35,22 +36,24 @@ struct ErrorResponse {
     error: String,
 }
 
-pub fn build_router(config: EngineConfigFile) -> Router {
-    let engines: Vec<EngineInfo> = config
-        .engine
-        .into_iter()
-        .map(|entry| EngineInfo {
-            id: entry.id.clone(),
-            name: entry.id,
-            author: String::new(),
+pub fn build_router(engines: Vec<EngineSpec>) -> Router {
+    let engine_info: Vec<EngineInfo> = engines
+        .iter()
+        .map(|engine| EngineInfo {
+            id: engine.id.clone(),
+            name: engine.name.clone(),
+            author: engine.author.clone(),
         })
         .collect();
 
-    let engine_ids = engines.iter().map(|engine| engine.id.clone()).collect();
+    let engine_specs = engines
+        .into_iter()
+        .map(|engine| (engine.id.clone(), engine))
+        .collect();
 
     let state = AppState {
-        engines: Arc::new(engines),
-        engine_ids: Arc::new(engine_ids),
+        engines: Arc::new(engine_info),
+        engine_specs: Arc::new(engine_specs),
         matches: Arc::new(RwLock::new(HashMap::new())),
     };
 
@@ -83,13 +86,35 @@ async fn create_match(
         ));
     }
 
-    if !state.engine_ids.contains(&payload.white_engine_id)
-        || !state.engine_ids.contains(&payload.black_engine_id)
-    {
+    let white_engine = match state.engine_specs.get(&payload.white_engine_id) {
+        Some(engine) => engine.clone(),
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "unknown engine id".to_string(),
+                }),
+            ));
+        }
+    };
+
+    let black_engine = match state.engine_specs.get(&payload.black_engine_id) {
+        Some(engine) => engine.clone(),
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "unknown engine id".to_string(),
+                }),
+            ));
+        }
+    };
+
+    if payload.white_engine_id == payload.black_engine_id {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
-                error: "unknown engine id".to_string(),
+                error: "white and black engines must differ".to_string(),
             }),
         ));
     }
@@ -108,10 +133,27 @@ async fn create_match(
         side_to_move: Side::White,
         ply: 0,
         start_fen: START_FEN.to_string(),
+        last_move: None,
     };
 
     let mut matches = state.matches.write().await;
     matches.insert(match_id.clone(), state_entry);
+
+    let matches = state.matches.clone();
+    let white_clone = white_engine.clone();
+    let black_clone = black_engine.clone();
+    let match_id_clone = match_id.clone();
+    let initial_ms = payload.time_control.initial_ms;
+    tokio::spawn(async move {
+        run_match(
+            match_id_clone,
+            white_clone,
+            black_clone,
+            initial_ms,
+            matches,
+        )
+        .await;
+    });
 
     Ok(Json(MatchCreateResponse { match_id }))
 }
@@ -170,6 +212,7 @@ async fn stream_match(
         yield Ok(Event::default().event("match_started").data(started_json));
 
         let mut ticker = time::interval(Duration::from_millis(200));
+        let mut last_emitted_ply: u32 = 0;
         loop {
             ticker.tick().await;
 
@@ -189,6 +232,21 @@ async fn stream_match(
             let clock_json = serde_json::to_string(&clock_payload).unwrap_or_default();
             yield Ok(Event::default().event("clock").data(clock_json));
 
+            if let Some(last_move) = snapshot.last_move.clone() {
+                if last_move.ply > last_emitted_ply {
+                    last_emitted_ply = last_move.ply;
+                    let move_payload = serde_json::json!({
+                        "ply": last_move.ply,
+                        "uci": last_move.uci,
+                        "san": last_move.san,
+                        "fen": last_move.fen,
+                        "pgn": last_move.pgn,
+                    });
+                    let move_json = serde_json::to_string(&move_payload).unwrap_or_default();
+                    yield Ok(Event::default().event("move").data(move_json));
+                }
+            }
+
             if snapshot.status != MatchStatus::Running {
                 if let Some(result) = snapshot.result {
                     let result_json = serde_json::to_string(&result).unwrap_or_default();
@@ -205,36 +263,42 @@ async fn stream_match(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{EngineConfig, EngineConfigFile};
-    use axum::body::{to_bytes, Body};
+    use axum::body::{Body, to_bytes};
     use axum::http::{Request, StatusCode as HttpStatus};
     use tower::ServiceExt;
 
-    fn sample_config() -> EngineConfigFile {
-        EngineConfigFile {
-            engine: vec![
-                EngineConfig {
-                    id: "stockfish-16".to_string(),
-                    path: "/opt/stockfish".into(),
-                    args: vec!["-threads".to_string(), "4".to_string()],
-                    working_dir: None,
-                },
-                EngineConfig {
-                    id: "lc0-0.30".to_string(),
-                    path: "/opt/lc0".into(),
-                    args: Vec::new(),
-                    working_dir: None,
-                },
-            ],
-        }
+    fn sample_engines() -> Vec<EngineSpec> {
+        vec![
+            EngineSpec {
+                id: "stockfish-16".to_string(),
+                name: "Stockfish 16".to_string(),
+                author: "SF Team".to_string(),
+                path: "/opt/stockfish".into(),
+                args: vec!["-threads".to_string(), "4".to_string()],
+                working_dir: None,
+            },
+            EngineSpec {
+                id: "lc0-0.30".to_string(),
+                name: "Leela Chess Zero".to_string(),
+                author: "Lc0 Team".to_string(),
+                path: "/opt/lc0".into(),
+                args: Vec::new(),
+                working_dir: None,
+            },
+        ]
     }
 
     #[tokio::test]
     async fn get_engines_returns_configured_engines() {
-        let app = build_router(sample_config());
+        let app = build_router(sample_engines());
 
         let response = app
-            .oneshot(Request::builder().uri("/api/engines").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/api/engines")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
@@ -250,7 +314,7 @@ mod tests {
 
     #[tokio::test]
     async fn post_match_creates_match() {
-        let app = build_router(sample_config());
+        let app = build_router(sample_engines());
 
         let request_body = serde_json::json!({
             "white_engine_id": "stockfish-16",
@@ -280,7 +344,7 @@ mod tests {
 
     #[tokio::test]
     async fn post_match_rejects_unknown_engine() {
-        let app = build_router(sample_config());
+        let app = build_router(sample_engines());
 
         let request_body = serde_json::json!({
             "white_engine_id": "unknown",

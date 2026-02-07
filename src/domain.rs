@@ -50,4 +50,14 @@ pub struct MatchState {
     pub side_to_move: Side,
     pub ply: u32,
     pub start_fen: String,
+    pub last_move: Option<MoveSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveSnapshot {
+    pub ply: u32,
+    pub uci: String,
+    pub san: String,
+    pub fen: String,
+    pub pgn: String,
 }

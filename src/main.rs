@@ -5,6 +5,7 @@ use std::{fs, process};
 mod api;
 mod config;
 mod domain;
+mod engine;
 mod match_runner;
 mod server;
 mod uci;
@@ -43,7 +44,20 @@ async fn main() {
         process::exit(1);
     }
 
-    let app = server::build_router(config);
+    let engines = match uci::discover_engines(&config.engine).await {
+        Ok(engines) => engines,
+        Err(err) => {
+            eprintln!("engine discovery failed: {err}");
+            process::exit(1);
+        }
+    };
+
+    if engines.is_empty() {
+        eprintln!("no engines available after discovery");
+        process::exit(1);
+    }
+
+    let app = server::build_router(engines);
 
     let listener = match tokio::net::TcpListener::bind(&cli.bind).await {
         Ok(listener) => listener,
