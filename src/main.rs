@@ -1,5 +1,6 @@
 use clap::Parser;
 use std::path::PathBuf;
+use std::{fs, process};
 
 mod api;
 mod config;
@@ -17,5 +18,26 @@ struct Cli {
 }
 
 fn main() {
-    let _cli = Cli::parse();
+    let cli = Cli::parse();
+
+    let config_text = match fs::read_to_string(&cli.config) {
+        Ok(contents) => contents,
+        Err(err) => {
+            eprintln!("failed to read config {}: {err}", cli.config.display());
+            process::exit(1);
+        }
+    };
+
+    let config = match config::EngineConfigFile::from_str(&config_text) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("invalid config format: {err}");
+            process::exit(1);
+        }
+    };
+
+    if let Err(err) = config.validate() {
+        eprintln!("invalid config contents: {err:?}");
+        process::exit(1);
+    }
 }

@@ -24,6 +24,17 @@ pub enum ConfigError {
     DuplicateId(String),
 }
 
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigError::EmptyEngineList => write!(f, "engine list is empty"),
+            ConfigError::EmptyId => write!(f, "engine id is empty"),
+            ConfigError::EmptyPath => write!(f, "engine path is empty"),
+            ConfigError::DuplicateId(id) => write!(f, "duplicate engine id: {id}"),
+        }
+    }
+}
+
 impl EngineConfigFile {
     pub fn from_str(input: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(input)
