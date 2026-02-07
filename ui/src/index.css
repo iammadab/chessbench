@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap');
+
+:root {
+  font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #1e1e1e;
+  background-color: #f7f7f5;
+
+  --font-primary: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --text-primary: #1e1e1e;
+  --text-muted: #6c6c6c;
+  --accent: #5bbd6f;
+  --border: #e3e3e3;
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f7f7f5;
+}
+
+#root {
+  min-height: 100vh;
+}
